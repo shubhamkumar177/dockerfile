@@ -1,0 +1,16 @@
+FROM alpine:latest AS stage1
+WORKDIR /root/
+RUN apk add git
+RUN git clone https://github.com/shubhamkumar177/tomcatsettings.git
+RUN git clone https://github.com/shubhamkumar177/javaweb.git
+FROM maven:3.8.7-eclipse-temurin-11-focal AS stage2
+COPY --from="stage1" /root/javaweb/core /root/core
+COPY --from="stage1" /root/javaweb/web /root/web
+COPY --from="stage1" /root/javaweb/pom.xml /root
+RUN mvn -f /root/pom.xml clean install
+FROM tomcat:latest AS stage3
+WORKDIR /opt
+RUN cp -r /usr/local/tomcat/webapps.dist /usr/local/tomcat/webapps
+COPY --from="stage1" /root/tomcatsettings/context.xml /usr/local/tomcat/webapps/manager/META-INF/
+COPY --from="stage1" /root/tomcatsettings/tomcat-users.xml /usr/local/tomcat/conf/
+COPY --from="stage2" /root/web/target/*.war /usr/local/tomcat/webapps/
